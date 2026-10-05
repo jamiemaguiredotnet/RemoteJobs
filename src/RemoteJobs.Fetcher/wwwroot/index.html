@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Remote .NET Jobs</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #171a21;
+    --border: #262b36;
+    --text: #e6e8eb;
+    --muted: #9aa3b2;
+    --accent: #5b8def;
+    --tag-bg: #232838;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    padding: 24px 20px 12px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .header-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { margin: 0 0 4px; font-size: 1.5rem; }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 16px; }
+  .stats-link { color: var(--accent); font-size: 0.85rem; text-decoration: none; white-space: nowrap; }
+  .stats-link:hover { text-decoration: underline; }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    max-width: 1100px;
+    margin: 0 auto 16px;
+    padding: 0 20px;
+  }
+  .controls input[type="text"],
+  .controls input[type="number"],
+  .controls select {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+  }
+  .controls input[type="text"] { flex: 1 1 220px; }
+  .controls input[type="number"] { width: 130px; }
+  .controls .toggle-group { display: flex; gap: 4px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 3px; }
+  .controls .toggle-group button {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  .controls .toggle-group button.active { background: var(--accent); color: white; }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 0 20px 40px; }
+  .result-count { color: var(--muted); font-size: 0.85rem; margin-bottom: 12px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .card h2 { font-size: 1.05rem; margin: 0; }
+  .card .company { color: var(--accent); font-size: 0.9rem; }
+  .card .meta { color: var(--muted); font-size: 0.8rem; display: flex; flex-wrap: wrap; gap: 6px; }
+  .card .comp { font-size: 0.95rem; font-weight: 600; }
+  .card .comp-raw { color: var(--muted); font-size: 0.78rem; font-weight: 400; }
+  .card .location { color: var(--muted); font-size: 0.8rem; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { background: var(--tag-bg); color: var(--muted); font-size: 0.72rem; padding: 3px 8px; border-radius: 999px; }
+  .badge { font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; font-weight: 600; background: var(--tag-bg); }
+  .badge-remote { color: #0ca30c; }
+  .badge-hybrid { color: #fab219; }
+  .badge-onsite { color: #d03b3b; }
+  .badge-unknown { color: var(--muted); }
+  .apply {
+    margin-top: auto;
+    align-self: flex-start;
+    background: var(--accent);
+    color: white;
+    text-decoration: none;
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+  }
+  .empty { color: var(--muted); padding: 40px 0; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-row">
+    <h1>Remote .NET Jobs</h1>
+    <a class="stats-link" href="stats.html">Stats &rarr;</a>
+  </div>
+  <div class="subtitle">Aggregated from RemoteOK, Remotive, Arbeitnow, Himalayas, Jobicy, Working Nomads, WeWorkRemotely, The Muse, Adzuna, Reed and Careerjet. Generated locally by the fetcher, no backend.</div>
+</header>
+
+<div class="controls">
+  <input type="text" id="search" placeholder="Search title, company, tags...">
+  <select id="countryFilter"><option value="">All countries</option></select>
+  <div class="toggle-group" id="workModeToggle">
+    <button data-value="">Any</button>
+    <button data-value="remote" class="active">100% remote</button>
+    <button data-value="hybrid">Hybrid</button>
+    <button data-value="onsite">Onsite</button>
+    <button data-value="unknown">Unknown</button>
+  </div>
+  <div class="toggle-group" id="compTypeToggle">
+    <button data-value="" class="active">Any</button>
+    <button data-value="contract">Contract (day rate)</button>
+    <button data-value="permanent">Permanent (salary)</button>
+  </div>
+  <input type="number" id="minComp" placeholder="Min salary/day rate">
+  <select id="postedWithin">
+    <option value="">Any time</option>
+    <option value="1">Last 24 hours</option>
+    <option value="3">Last 3 days</option>
+    <option value="7">Last 7 days</option>
+    <option value="14">Last 14 days</option>
+    <option value="30">Last 30 days</option>
+  </select>
+  <select id="sortBy">
+    <option value="date">Sort: newest first</option>
+    <option value="comp">Sort: compensation (high to low)</option>
+  </select>
+</div>
+
+<main>
+  <div class="result-count" id="resultCount"></div>
+  <div class="grid" id="grid"></div>
+</main>
+
+<script>
+let jobs = [];
+let state = { search: "", country: "", workMode: "remote", compType: "", minComp: null, postedWithin: "", sortBy: "date" };
+
+const workModeLabels = { remote: "100% remote", hybrid: "Hybrid", onsite: "Onsite", unknown: "Unknown" };
+
+const grid = document.getElementById("grid");
+const resultCount = document.getElementById("resultCount");
+
+function annualTypeGroup(compType) {
+  // "Permanent" bucket = AnnualSalary/HourlyRate, "Contract" bucket = DayRate.
+  // HourlyRate is rare here but treated as contract-ish; kept out of the strict compType sort mixing.
+  if (compType === "dayRate") return "contract";
+  if (compType === "annualSalary" || compType === "hourlyRate") return "permanent";
+  return "";
+}
+
+function formatComp(job) {
+  if (job.compType === "unknown" || (job.minAmount == null && job.maxAmount == null)) {
+    return { line: "Not listed", raw: job.rawSalaryText || "" };
+  }
+  const cur = job.currency ? job.currency + " " : "";
+  const suffix = job.compType === "dayRate" ? "/day" : job.compType === "hourlyRate" ? "/hr" : "/yr";
+  let amount;
+  if (job.minAmount != null && job.maxAmount != null && job.minAmount !== job.maxAmount) {
+    amount = `${cur}${Math.round(job.minAmount).toLocaleString()} - ${Math.round(job.maxAmount).toLocaleString()}${suffix}`;
+  } else {
+    const single = job.maxAmount ?? job.minAmount;
+    amount = `${cur}${Math.round(single).toLocaleString()}${suffix}`;
+  }
+  return { line: amount, raw: job.rawSalaryText || "" };
+}
+
+function daysAgo(dateStr) {
+  const posted = new Date(dateStr).getTime();
+  return (Date.now() - posted) / (1000 * 60 * 60 * 24);
+}
+
+function timeAgoLabel(dateStr) {
+  const d = Math.floor(daysAgo(dateStr));
+  if (d <= 0) return "Today";
+  if (d === 1) return "1 day ago";
+  return `${d} days ago`;
+}
+
+function populateCountryFilter() {
+  const select = document.getElementById("countryFilter");
+  const set = new Set();
+  jobs.forEach(j => (j.countries || []).forEach(c => set.add(c)));
+  const sorted = Array.from(set).sort((a, b) => a.localeCompare(b));
+  for (const c of sorted) {
+    if (c === "Worldwide") continue;
+    const opt = document.createElement("option");
+    opt.value = c;
+    opt.textContent = c;
+    select.appendChild(opt);
+  }
+}
+
+function applyFilters() {
+  let result = jobs.filter(j => {
+    if (state.search) {
+      const haystack = (j.title + " " + j.company + " " + (j.tags || []).join(" ")).toLowerCase();
+      if (!haystack.includes(state.search.toLowerCase())) return false;
+    }
+    if (state.country) {
+      const countries = j.countries || [];
+      if (!countries.includes(state.country) && !countries.includes("Worldwide")) return false;
+    }
+    if (state.workMode && j.workMode !== state.workMode) return false;
+    if (state.compType) {
+      if (annualTypeGroup(j.compType) !== state.compType) return false;
+    }
+    if (state.minComp != null && !isNaN(state.minComp)) {
+      if (j.maxAmount == null || j.maxAmount < state.minComp) return false;
+    }
+    if (state.postedWithin) {
+      if (daysAgo(j.postedAt) > Number(state.postedWithin)) return false;
+    }
+    return true;
+  });
+
+  if (state.sortBy === "date") {
+    result.sort((a, b) => new Date(b.postedAt) - new Date(a.postedAt));
+  } else if (state.sortBy === "comp") {
+    // Only compare within the same CompType so day rates and salaries never mix in one sort.
+    result.sort((a, b) => {
+      if (a.compType !== b.compType) {
+        const rank = t => (t === "unknown" ? 1 : 0);
+        return rank(a.compType) - rank(b.compType);
+      }
+      const av = a.maxAmount ?? a.minAmount ?? -1;
+      const bv = b.maxAmount ?? b.minAmount ?? -1;
+      return bv - av;
+    });
+  }
+
+  render(result);
+}
+
+function render(list) {
+  grid.innerHTML = "";
+  resultCount.textContent = `${list.length} job${list.length === 1 ? "" : "s"}`;
+
+  if (list.length === 0) {
+    grid.innerHTML = '<div class="empty">No jobs match these filters.</div>';
+    return;
+  }
+
+  for (const job of list) {
+    const comp = formatComp(job);
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <h2>${escapeHtml(job.title)}</h2>
+      <div class="company">${escapeHtml(job.company)}</div>
+      <div class="meta">
+        <span>${escapeHtml(job.source)}</span>
+        <span>&middot;</span>
+        <span>${timeAgoLabel(job.postedAt)}</span>
+        <span class="badge badge-${job.workMode}">${escapeHtml(workModeLabels[job.workMode] || job.workMode)}</span>
+      </div>
+      <div class="comp">${escapeHtml(comp.line)}</div>
+      ${comp.raw ? `<div class="comp-raw">${escapeHtml(comp.raw)}</div>` : ""}
+      <div class="location">${escapeHtml(job.rawLocation || "")}</div>
+      <div class="tags">${(job.tags || []).slice(0, 8).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join("")}</div>
+      <a class="apply" href="${escapeHtml(job.applyUrl)}" target="_blank" rel="noopener noreferrer">Apply &rarr;</a>
+    `;
+    grid.appendChild(card);
+  }
+}
+
+function escapeHtml(str) {
+  return String(str ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  })[c]);
+}
+
+document.getElementById("search").addEventListener("input", e => { state.search = e.target.value; applyFilters(); });
+document.getElementById("countryFilter").addEventListener("change", e => { state.country = e.target.value; applyFilters(); });
+document.getElementById("minComp").addEventListener("input", e => { state.minComp = e.target.value ? Number(e.target.value) : null; applyFilters(); });
+document.getElementById("postedWithin").addEventListener("change", e => { state.postedWithin = e.target.value; applyFilters(); });
+document.getElementById("sortBy").addEventListener("change", e => { state.sortBy = e.target.value; applyFilters(); });
+
+document.getElementById("compTypeToggle").addEventListener("click", e => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  document.querySelectorAll("#compTypeToggle button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  state.compType = btn.dataset.value;
+  applyFilters();
+});
+
+document.getElementById("workModeToggle").addEventListener("click", e => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  document.querySelectorAll("#workModeToggle button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  state.workMode = btn.dataset.value;
+  applyFilters();
+});
+
+fetch("jobs.json", { cache: "no-store" })
+  .then(r => r.json())
+  .then(data => {
+    jobs = data;
+    populateCountryFilter();
+    applyFilters();
+  })
+  .catch(err => {
+    grid.innerHTML = `<div class="empty">Could not load jobs.json (${escapeHtml(err.message)}).<br>If you opened this file directly (file://), run a local static server instead - see the README.</div>`;
+  });
+</script>
+</body>
+</html>

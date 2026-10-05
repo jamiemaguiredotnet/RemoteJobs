@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Remote .NET Jobs - Stats</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #171a21;
+    --border: #262b36;
+    --text: #e6e8eb;
+    --muted: #9aa3b2;
+    --accent: #5b8def;
+    --seq: #3987e5;
+    --good: #0ca30c;
+    --warning: #fab219;
+    --critical: #d03b3b;
+    --neutral: #898781;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header { padding: 24px 20px 12px; max-width: 1100px; margin: 0 auto; }
+  .header-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { margin: 0 0 4px; font-size: 1.5rem; }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 4px; }
+  .back-link { color: var(--accent); font-size: 0.85rem; text-decoration: none; white-space: nowrap; }
+  .back-link:hover { text-decoration: underline; }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 8px 20px 40px; }
+  section { margin-top: 28px; }
+  h2 { font-size: 1.05rem; margin: 0 0 12px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .tile {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .tile .value { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .tile .label { color: var(--muted); font-size: 0.8rem; margin-top: 2px; }
+  .tile.mode-remote .value { color: var(--good); }
+  .tile.mode-hybrid .value { color: var(--warning); }
+  .tile.mode-onsite .value { color: var(--critical); }
+  .tile.mode-unknown .value { color: var(--neutral); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 14px; font-size: 0.82rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .swatch.remote { background: var(--good); }
+  .swatch.hybrid { background: var(--warning); }
+  .swatch.onsite { background: var(--critical); }
+  .swatch.unknown { background: var(--neutral); }
+  .swatch.seq { background: var(--seq); }
+
+  .bar-row { display: grid; grid-template-columns: 140px 1fr 90px; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .bar-row .source-label { font-size: 0.85rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { background: var(--card); border: 1px solid var(--border); border-radius: 4px; height: 22px; display: flex; overflow: hidden; }
+  .bar-seg { height: 100%; }
+  .bar-seg.single { border-radius: 3px; background: var(--seq); }
+  .bar-seg + .bar-seg { border-left: 2px solid var(--bg); }
+  .bar-seg.remote { background: var(--good); }
+  .bar-seg.hybrid { background: var(--warning); }
+  .bar-seg.onsite { background: var(--critical); }
+  .bar-seg.unknown { background: var(--neutral); }
+  .bar-total { font-size: 0.8rem; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  th { color: var(--muted); font-weight: 600; }
+  td:not(:first-child), th:not(:first-child) { text-align: right; }
+  .empty { color: var(--muted); padding: 40px 0; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-row">
+    <h1>Stats</h1>
+    <a class="back-link" href="index.html">&larr; Back to jobs</a>
+  </div>
+  <div class="subtitle">Volumes at each stage of the fetcher's pipeline: raw postings pulled per source, how many are .NET-relevant, and how those split by work mode.</div>
+</header>
+
+<main id="main">
+  <div class="empty" id="loading">Loading stats.json&hellip;</div>
+</main>
+
+<script>
+function escapeHtml(str) {
+  return String(str ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  })[c]);
+}
+
+function renderStatTiles(totals) {
+  const tiles = [
+    { value: totals.raw, label: "Raw postings fetched", cls: "" },
+    { value: totals.dotNetRelevant, label: ".NET-relevant matches", cls: "" },
+    { value: totals.afterDedupe, label: "After de-dupe", cls: "" },
+    { value: totals.remote, label: "100% remote", cls: "mode-remote" },
+    { value: totals.hybrid, label: "Hybrid", cls: "mode-hybrid" },
+    { value: totals.onsite, label: "Onsite", cls: "mode-onsite" },
+    { value: totals.unknown, label: "Unknown", cls: "mode-unknown" },
+  ];
+  return `<div class="tiles">${tiles.map(t => `
+    <div class="tile ${t.cls}">
+      <div class="value">${t.value.toLocaleString()}</div>
+      <div class="label">${escapeHtml(t.label)}</div>
+    </div>`).join("")}</div>`;
+}
+
+function renderRawBars(sources) {
+  const max = Math.max(1, ...sources.map(s => s.raw));
+  return `
+    <div class="legend"><span><span class="swatch seq"></span>Raw postings fetched</span></div>
+    ${sources.map(s => `
+      <div class="bar-row">
+        <div class="source-label" title="${escapeHtml(s.source)}">${escapeHtml(s.source)}</div>
+        <div class="bar-track">
+          <div class="bar-seg single" style="width:${(s.raw / max * 100).toFixed(1)}%" title="${escapeHtml(s.source)}: ${s.raw}"></div>
+        </div>
+        <div class="bar-total">${s.raw.toLocaleString()}</div>
+      </div>`).join("")}
+  `;
+}
+
+function renderWorkModeBars(sources) {
+  const max = Math.max(1, ...sources.map(s => s.dotNetRelevant));
+  const seg = (s, mode, cls) => s[mode] > 0
+    ? `<div class="bar-seg ${cls}" style="width:${(s[mode] / max * 100).toFixed(1)}%" title="${escapeHtml(s.source)} - ${cls}: ${s[mode]}"></div>`
+    : "";
+  return `
+    <div class="legend">
+      <span><span class="swatch remote"></span>100% remote</span>
+      <span><span class="swatch hybrid"></span>Hybrid</span>
+      <span><span class="swatch onsite"></span>Onsite</span>
+      <span><span class="swatch unknown"></span>Unknown</span>
+    </div>
+    ${sources.filter(s => s.dotNetRelevant > 0).map(s => `
+      <div class="bar-row">
+        <div class="source-label" title="${escapeHtml(s.source)}">${escapeHtml(s.source)}</div>
+        <div class="bar-track">
+          ${seg(s, "remote", "remote")}${seg(s, "hybrid", "hybrid")}${seg(s, "onsite", "onsite")}${seg(s, "unknown", "unknown")}
+        </div>
+        <div class="bar-total">${s.dotNetRelevant.toLocaleString()}</div>
+      </div>`).join("")}
+  `;
+}
+
+function renderTable(sources) {
+  return `
+    <table>
+      <thead>
+        <tr><th>Source</th><th>Raw</th><th>.NET relevant</th><th>Remote</th><th>Hybrid</th><th>Onsite</th><th>Unknown</th></tr>
+      </thead>
+      <tbody>
+        ${sources.map(s => `
+          <tr>
+            <td>${escapeHtml(s.source)}</td>
+            <td>${s.raw}</td>
+            <td>${s.dotNetRelevant}</td>
+            <td>${s.remote}</td>
+            <td>${s.hybrid}</td>
+            <td>${s.onsite}</td>
+            <td>${s.unknown}</td>
+          </tr>`).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+fetch("stats.json", { cache: "no-store" })
+  .then(r => r.json())
+  .then(data => {
+    const totals = data.totals;
+    const sources = data.sources;
+    document.getElementById("main").innerHTML = `
+      <section>
+        ${renderStatTiles(totals)}
+      </section>
+      <section>
+        <h2>Raw postings fetched per source</h2>
+        ${renderRawBars(sources)}
+      </section>
+      <section>
+        <h2>Work mode breakdown (.NET-relevant matches, before de-dupe)</h2>
+        ${renderWorkModeBars(sources)}
+      </section>
+      <section>
+        <h2>All sources</h2>
+        ${renderTable(sources)}
+      </section>
+      <section>
+        <div class="subtitle">Generated ${new Date(data.generatedAt).toLocaleString()}</div>
+      </section>
+    `;
+  })
+  .catch(err => {
+    document.getElementById("main").innerHTML = `<div class="empty">Could not load stats.json (${escapeHtml(err.message)}).<br>Run the fetcher first, then serve this folder with a local static server - see the README.</div>`;
+  });
+</script>
+</body>
+</html>
