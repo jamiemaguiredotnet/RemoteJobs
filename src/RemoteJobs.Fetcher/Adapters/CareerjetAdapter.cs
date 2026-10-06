@@ -22,7 +22,10 @@ namespace RemoteJobs.Fetcher.Adapters;
 /// not a bug in this adapter.
 ///
 /// Careerjet is a general job board covering every job type across ~70 country markets, not a
-/// remote-only one - same *requires explicit remote match* trust tier as Adzuna/Reed. Written
+/// remote-only one - uses the same *truncated description* trust tier as Adzuna (see
+/// RemoteTrust.TruncatedDescription), as a precaution rather than a confirmed limitation - its
+/// docs don't mention a description length cap, but it hasn't been live-tested to rule one out
+/// either, and Adzuna's own cap wasn't documented anywhere until it was found by testing. Written
 /// against Careerjet's published v4 API docs but not live-tested end-to-end (no test API key or
 /// whitelisted IP was available). If you hit an error after setting both env vars, check the
 /// console output for the exact HTTP error and open an issue in this repo (or just tell me).
@@ -122,7 +125,7 @@ public class CareerjetAdapter : IJobSourceAdapter
                         Currency = hasSalary ? currencyCode : null,
                         RawSalaryText = hasSalary ? $"{min:N0} - {max:N0} {currencyCode} (Careerjet)" : null,
                         Description = description,
-                        RemoteTrust = RemoteTrust.RequiresExplicitRemoteMatch
+                        RemoteTrust = RemoteTrust.TruncatedDescription
                     });
                 }
 

@@ -22,4 +22,4 @@ app.Run();
 
 static string GetFetcherWwwRoot([CallerFilePath] string sourceFile = "") =>
     Path.GetFullPath(Path.Combine(
-        Path.GetDirectoryName(sourceFile)!, "..", "RemoteJobs.Fetcher", "bin", "Debug", "net8.0", "wwwroot"));
+        Path.GetDirectoryName(sourceFile)!, "..", "RemoteJobs.Fetcher", "bin", "Debug", "net9.0", "wwwroot"));

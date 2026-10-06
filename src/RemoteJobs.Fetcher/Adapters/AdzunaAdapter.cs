@@ -11,12 +11,15 @@ namespace RemoteJobs.Fetcher.Adapters;
 /// adapter is skipped rather than failing the whole run.
 ///
 /// Adzuna is a general job board covering every job type, not a remote-only one, so it uses
-/// the *requires explicit remote match* trust tier. It supports separate per-country indices
-/// under the same account/key (`/jobs/{country-code}/search/{page}`) - queried across the UK,
-/// US, Canada, Australia, Germany, Netherlands and France. The `what=remote` query param is
-/// the English word specifically, so non-English-market results (DE/NL/FR) skew toward postings
-/// that happen to use the English term or an English-language listing - a real gap for local-
-/// language "Home Office"/"télétravail"-style postings this adapter won't catch.
+/// the *truncated description* trust tier - confirmed to cap `description` at ~500 characters,
+/// so an explicit "remote" mention can't be trusted as the full story and never resolves to
+/// WorkMode.Remote on its own (see RemoteTrust.TruncatedDescription). It supports separate
+/// per-country indices under the same account/key (`/jobs/{country-code}/search/{page}`) -
+/// queried across the UK, US, Canada, Australia, Germany, Netherlands and France. The
+/// `what=remote` query param is the English word specifically, so non-English-market results
+/// (DE/NL/FR) skew toward postings that happen to use the English term or an English-language
+/// listing - a real gap for local-language "Home Office"/"télétravail"-style postings this
+/// adapter won't catch.
 /// </summary>
 public class AdzunaAdapter : IJobSourceAdapter
 {
@@ -110,7 +113,7 @@ public class AdzunaAdapter : IJobSourceAdapter
                         Currency = hasSalary ? currency : null,
                         RawSalaryText = hasSalary ? $"{min:N0} - {max:N0} {currency} (Adzuna{(isPredicted ? ", estimated" : "")})" : null,
                         Description = description,
-                        RemoteTrust = RemoteTrust.RequiresExplicitRemoteMatch
+                        RemoteTrust = RemoteTrust.TruncatedDescription
                     });
                 }
 

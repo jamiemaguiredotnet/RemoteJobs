@@ -1,14 +1,15 @@
 # RemoteJobs
 
-A small, self-contained .NET job aggregator. A console app fetches postings from eleven free
-job APIs (eight no-key, three needing a free key) across multiple countries, filters them
-down to .NET/C#/Blazor roles, classifies each by work mode (remote/hybrid/onsite/unknown),
-and writes `jobs.json` + `stats.json`. Static `index.html`/`stats.html` pages read those files
-client-side - there is no backend, no database, and nothing to host beyond static files.
+A small, self-contained .NET + AI job aggregator. A console app fetches postings from eleven
+free job APIs (eight no-key, three needing a free key) across multiple countries, filters
+them down to .NET/C#/Blazor and AI/ML roles, classifies each by work mode (remote/hybrid/
+onsite/unknown), and writes `jobs.json` + `stats.json`. Static `index.html`/`stats.html`
+pages read those files client-side - there is no backend, no database, and nothing to host
+beyond static files.
 
 ## How it works
 
-- `src/RemoteJobs.Fetcher` - a .NET 8 console app. One adapter class per job source
+- `src/RemoteJobs.Fetcher` - a .NET 9 console app. One adapter class per job source
   (`Adapters/`), normalizing every posting into a shared `JobPosting` shape. Filtering
   (`.NET` relevance, work-mode classification, country parsing, salary parsing, dedupe)
   lives in `Filtering/` and `Program.cs`.
@@ -145,10 +146,10 @@ This builds the app (if needed), calls all eleven sources, filters/dedupes the r
 writes:
 
 ```
-src/RemoteJobs.Fetcher/bin/Debug/net8.0/wwwroot/jobs.json
-src/RemoteJobs.Fetcher/bin/Debug/net8.0/wwwroot/stats.json
-src/RemoteJobs.Fetcher/bin/Debug/net8.0/wwwroot/index.html   (copied automatically)
-src/RemoteJobs.Fetcher/bin/Debug/net8.0/wwwroot/stats.html   (copied automatically)
+src/RemoteJobs.Fetcher/bin/Debug/net9.0/wwwroot/jobs.json
+src/RemoteJobs.Fetcher/bin/Debug/net9.0/wwwroot/stats.json
+src/RemoteJobs.Fetcher/bin/Debug/net9.0/wwwroot/index.html   (copied automatically)
+src/RemoteJobs.Fetcher/bin/Debug/net9.0/wwwroot/stats.html   (copied automatically)
 ```
 
 Everything the site needs lives in that one `wwwroot` folder. Copy it anywhere, or point a
@@ -202,7 +203,7 @@ Open `RemoteJobs.sln`. There are two runnable projects:
   the one you run whenever you want fresh data.
 - **RemoteJobs.Web** - a tiny static-file server that exists purely so you can press F5 and
   get a browser tab instead of typing a static-server command. It always serves
-  `src/RemoteJobs.Fetcher/bin/Debug/net8.0/wwwroot` - i.e. whatever the Fetcher last wrote
+  `src/RemoteJobs.Fetcher/bin/Debug/net9.0/wwwroot` - i.e. whatever the Fetcher last wrote
   in a Debug build - at `http://localhost:5252`, and VS's launch profile opens that URL in
   your browser automatically. It has no other logic: `UseDefaultFiles()` +
   `UseStaticFiles()` pointed at that folder.
@@ -227,31 +228,57 @@ This is intentionally a heuristic system, not a precise one - the raw location s
 raw salary text are always kept alongside the parsed fields so you can eyeball edge cases
 in the UI rather than trust the parser blindly.
 
-- **.NET relevance** matches `.net`, `c#`, `asp.net`, `dotnet`, `blazor` with word-boundary
-  regexes (so `.net` doesn't fire on "internet"). It matches against **title and tags
-  only, never the free-text description** - some staffing-marketplace listings (Lemon.io
-  postings via Remotive/Working Nomads in particular) pad every job's description with a
-  boilerplate sentence listing every stack they recruit for ("...React & Golang, PHP & Vue,
-  React & .NET..."), which would otherwise false-positive on completely unrelated roles.
-  For the same reason, an abnormally long tag list (more than 15 tags - a strong signal of
-  the same "we do everything" pattern, since those postings also carry 40+ generic tags) is
-  excluded from the tag check entirely. Net effect: matches are precise but conservative -
-  a genuinely .NET-relevant role that only mentions it deep in a normal-length description
-  won't be caught. Given how noisy the alternative was, that trade-off is intentional.
+- **Relevance** matches `.net`, `c#`, `asp.net`, `dotnet`, `blazor` **or** a set of AI/ML
+  terms (`ai`, `llm`, `genai`, `nlp`, `machine learning`, `generative ai`, `artificial
+  intelligence`, `agentic ai`, `ml engineer`) with word-boundary regexes (so `.net` doesn't
+  fire on "internet", and bare `ai` doesn't fire inside "Aiden"). .NET and AI are two
+  independent categories, not an intersection - a pure AI/ML role with no .NET in sight is
+  in scope, same as a pure .NET role with no AI in sight. It matches against **title and
+  tags only, never the free-text description** - some staffing-marketplace listings
+  (Lemon.io postings via Remotive/Working Nomads in particular) pad every job's description
+  with a boilerplate sentence listing every stack they recruit for ("...React & Golang, PHP
+  & Vue, React & .NET..."), which would otherwise false-positive on completely unrelated
+  roles. For the same reason, an abnormally long tag list (more than 15 tags - a strong
+  signal of the same "we do everything" pattern, since those postings also carry 40+ generic
+  tags) is excluded from the tag check entirely. Net effect: matches are precise but
+  conservative - a genuinely relevant role that only mentions it deep in a normal-length
+  description won't be caught, and a generic "AI" category tag on an otherwise-unrelated
+  role (data labeling, transcription) can occasionally over-include. Given how noisy the
+  alternative was, that trade-off is intentional.
 - **Work mode** (`WorkMode`: Remote / Hybrid / Onsite / Unknown) is *classified*, not used
   to hard-reject a .NET-relevant posting - every match is kept in `jobs.json` and tagged, so
   the UI's work-mode filter (and the Stats page) can show hybrid/onsite volume instead of
-  it being silently dropped. Classification has three tiers, per source:
+  it being silently dropped. Classification has four tiers, per source:
   - *Trusted remote-only* (RemoteOK, Himalayas): these boards only carry remote roles, so
     every match is tagged `Remote` without a text check.
   - *Assumed remote unless flagged* (Remotive, Jobicy, Working Nomads, WeWorkRemotely):
-    tagged `Hybrid`/`Onsite` if the text contains `hybrid`/a pattern like "3 days a week",
-    or `onsite`/"in office" respectively; otherwise assumed `Remote`.
-  - *Requires explicit remote match* (Adzuna, Reed, Careerjet): these are general job boards
-    that also carry ordinary office jobs, so absence of hybrid/onsite text isn't enough to
-    call it Remote - it's tagged `Remote` only if it also **positively** mentions `remote`,
-    "work from home", "WFH", or "remote-first"; otherwise `Unknown` (not Onsite - the source
-    simply gave no signal either way).
+    tagged `Hybrid` if the text contains `hybrid` or a day/frequency count in either digit or
+    word form ("3 days a week", "two days a week", "twice a week"); tagged `Onsite` if it
+    contains `onsite`/"in office", or phrasing like "based at their site"/"office-based";
+    otherwise assumed `Remote`.
+  - *Requires explicit remote match* (Reed): a general job board that also carries ordinary
+    office jobs, so absence of hybrid/onsite text isn't enough to call it Remote - it's
+    tagged `Remote` only if it also **positively** mentions `remote`, "work from home", "WFH",
+    or "remote-first"; otherwise `Unknown` (not Onsite - the source simply gave no signal
+    either way). A bare "remote" doesn't count if it's immediately followed by a word like
+    "monitoring"/"sensing"/"control"/"access"/"support"/"management"/"device(s)"/"system(s)" -
+    that's almost always the product being described ("remote monitoring systems"), not the
+    job's work arrangement, and counting it caused a real false positive on an onsite role
+    that happened to build remote-monitoring software.
+  - *Truncated description* (Adzuna, Careerjet): same hybrid/onsite detection as above - a
+    hybrid or onsite signal found within the available text is still trusted - but this tier
+    **never resolves to `Remote`**, even on an explicit "remote"/"WFH" mention; the best it
+    can do on a clean match is `Unknown`. This is a deliberate downgrade, not a bug: Adzuna's
+    search API confirmed-truncates `description` to ~500 characters, so a posting whose
+    opening paragraph says "WFH" but whose required-office-days detail only appears later -
+    e.g. "...joining colleagues in the office twice a week" - would otherwise read as `Remote`
+    even though it's genuinely hybrid, because the disqualifying text is outside what the API
+    hands us at all (confirmed repeatedly on one real listing). Given this tool's entire
+    purpose is telling the truth about "remote," a false `Remote` is worse than a false
+    `Unknown` - an `Unknown` posting is still visible and checkable, a false `Remote` just lies
+    quietly. Careerjet shares the tier as a precaution: its docs don't mention a length cap,
+    but it hasn't been live-tested to rule one out either, and Adzuna's cap wasn't documented
+    anywhere until it was found by testing.
 
   **Exception:** Arbeitnow provides its own structured `remote: true/false` flag, which is
   trusted over any text heuristic - non-remote Arbeitnow postings are filtered out by the

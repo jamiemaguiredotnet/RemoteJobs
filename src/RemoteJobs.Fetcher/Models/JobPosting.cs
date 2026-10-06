@@ -18,9 +18,15 @@ public enum RemoteTrust
     /// <summary>Source is remote-only by nature (e.g. RemoteOK, Himalayas); skip the hybrid/onsite text check entirely.</summary>
     TrustedRemoteOnly,
 
-    /// <summary>Source is a general job board (e.g. Adzuna, Reed) covering non-remote roles too, so a posting
+    /// <summary>Source is a general job board (e.g. Reed) covering non-remote roles too, so a posting
     /// must positively mention "remote" as well as not looking hybrid/onsite.</summary>
-    RequiresExplicitRemoteMatch
+    RequiresExplicitRemoteMatch,
+
+    /// <summary>Like RequiresExplicitRemoteMatch, but the source's API truncates the description (Adzuna
+    /// confirmed at ~500 chars), so an explicit "remote" mention can't be trusted as the full story - a
+    /// disqualifying hybrid/onsite detail may simply be past the cutoff. Hybrid/onsite text found within
+    /// the truncated snippet is still trusted; otherwise this always resolves to Unknown, never Remote.</summary>
+    TruncatedDescription
 }
 
 public enum WorkMode
