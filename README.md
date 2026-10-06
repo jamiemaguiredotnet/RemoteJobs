@@ -7,6 +7,17 @@ onsite/unknown), and writes `jobs.json` + `stats.json`. Static `index.html`/`sta
 pages read those files client-side - there is no backend, no database, and nothing to host
 beyond static files.
 
+## Screenshots
+
+The search page - work-mode filter, country/comp filters, newest-first by default:
+
+![RemoteJobs search page: dark theme, filter bar with work-mode toggle set to 100% remote, grid of job cards](blog-images/search-page.png)
+
+The Stats page - raw postings per source, how many clear the relevance bar, and the work-mode
+breakdown:
+
+![RemoteJobs stats page: stat tiles for totals, a raw-postings-per-source bar chart, and a work-mode breakdown bar chart](blog-images/stats-page.png)
+
 ## How it works
 
 - `src/RemoteJobs.Fetcher` - a .NET 9 console app. One adapter class per job source
